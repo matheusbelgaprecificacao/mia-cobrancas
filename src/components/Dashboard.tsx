@@ -13,7 +13,7 @@ import {
   Cell,
   Legend,
 } from 'recharts';
-import { TrendingUp, Wallet, Users, Receipt, CalendarClock } from 'lucide-react';
+import { TrendingUp, Wallet, Users, Receipt, CalendarClock, Coins } from 'lucide-react';
 import Nav from '@/components/Nav';
 import { supabase } from '@/lib/supabase';
 import { calcular, agruparPorCliente, brl, hojeSP } from '@/lib/calculos';
@@ -67,6 +67,7 @@ export default function Dashboard() {
     const juros = abertas.reduce((s, i) => s + i.estado.juros, 0);
     const lucroProx = abertas.reduce((s, i) => s + i.estado.jurosProximo, 0);
     const jaRecebido = pagamentos.reduce((s, p) => s + p.valor, 0);
+    const jurosRecebido = itens.reduce((s, i) => s + i.estado.jurosPago, 0);
     const fecham7 = abertas.filter(
       (i) => (i.estado.diasProxFechamento ?? 99) <= 7,
     ).length;
@@ -76,11 +77,12 @@ export default function Dashboard() {
       juros,
       lucroProx,
       jaRecebido,
+      jurosRecebido,
       fecham7,
       nClientes: clientes.length,
       nDividas: abertas.length,
     };
-  }, [abertas, clientes, pagamentos]);
+  }, [abertas, clientes, pagamentos, itens]);
 
   const composicao = useMemo(
     () => [
@@ -175,6 +177,12 @@ export default function Dashboard() {
           label="Já recebido"
           valor={brl(m.jaRecebido)}
           nota="soma de todos os pagamentos"
+        />
+        <Card
+          icon={<Coins size={16} className="text-green" />}
+          label="Lucro de juros recebido"
+          valor={brl(m.jurosRecebido)}
+          nota="juros que já entrou no bolso"
         />
         <Card
           icon={<Users size={16} className="text-ink-soft" />}

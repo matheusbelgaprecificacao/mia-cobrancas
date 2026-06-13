@@ -3,7 +3,17 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Cobranças · Mia Utilidades',
-  description: 'Controle de cobranças, multas e lembretes',
+  description: 'Controle de cobranças, juros e lembretes',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    title: 'Cobranças',
+    statusBarStyle: 'default',
+  },
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export const viewport: Viewport = {

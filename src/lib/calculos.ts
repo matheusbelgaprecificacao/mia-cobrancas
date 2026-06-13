@@ -6,7 +6,6 @@ import type {
   Cliente,
 } from '@/types';
 
-// Juros de 20% sobre o saldo de produto, a cada ciclo de 30 dias.
 export const JUROS_PCT = 0.2;
 export const CICLO_DIAS = 30;
 
@@ -14,11 +13,9 @@ function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-// ---- Datas (tratadas como YYYY-MM-DD em UTC, sem fuso) ----
+// ---- Datas (YYYY-MM-DD em UTC, sem fuso) ----
 export function hojeSP(): string {
-  return new Date().toLocaleDateString('en-CA', {
-    timeZone: 'America/Sao_Paulo',
-  });
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 }
 function parseISO(d: string): Date {
   return new Date(d + 'T00:00:00Z');
@@ -32,28 +29,25 @@ export function addDias(d: string, n: number): string {
   return toISO(dt);
 }
 export function diffDias(a: string, b: string): number {
-  return Math.floor(
-    (parseISO(b).getTime() - parseISO(a).getTime()) / 86_400_000,
-  );
+  return Math.floor((parseISO(b).getTime() - parseISO(a).getTime()) / 86_400_000);
 }
 
-// ---- Motor: calcula o estado de uma dívida hoje ----
-// Processa, em ordem de data, os fechamentos (juros) e os pagamentos.
-// Em cada pagamento: abate o juros em aberto primeiro, depois o produto.
+// ---- Motor de cálculo ----
 export function calcular(
   divida: Divida,
   pagamentos: Pagamento[],
   hoje: string = hojeSP(),
 ): EstadoDivida {
+  const jurosPct = divida.juros_pct ?? JUROS_PCT;
+  const cicloDias = divida.ciclo_dias ?? CICLO_DIAS;
   const dias = Math.max(0, diffDias(divida.data_compra, hoje));
-  const ciclosFechados = Math.floor(dias / CICLO_DIAS);
+  const ciclosFechados = cicloDias > 0 ? Math.floor(dias / cicloDias) : 0;
 
   type Ev = { date: string; tipo: 'juros' | 'pag'; valor: number; ord: number };
   const eventos: Ev[] = [];
-
   for (let k = 1; k <= ciclosFechados; k++) {
     eventos.push({
-      date: addDias(divida.data_compra, k * CICLO_DIAS),
+      date: addDias(divida.data_compra, k * cicloDias),
       tipo: 'juros',
       valor: 0,
       ord: 0,
@@ -62,25 +56,25 @@ export function calcular(
   for (const p of pagamentos) {
     eventos.push({ date: p.data, tipo: 'pag', valor: p.valor, ord: 1 });
   }
-  // mesma data: juros (ord 0) entra antes do pagamento (ord 1)
   eventos.sort((a, b) =>
     a.date < b.date ? -1 : a.date > b.date ? 1 : a.ord - b.ord,
   );
 
-  let P = round2(divida.valor_compra); // produto devedor
-  let J = 0; // juros em aberto
+  let P = round2(divida.valor_compra);
+  let J = 0;
+  let jurosPago = 0;
 
   for (const e of eventos) {
     if (e.tipo === 'juros') {
-      J = round2(J + round2(P * JUROS_PCT));
+      J = round2(J + round2(P * jurosPct));
     } else {
       let pago = e.valor;
       const abateJuros = Math.min(pago, J);
       J = round2(J - abateJuros);
+      jurosPago = round2(jurosPago + abateJuros);
       pago = round2(pago - abateJuros);
       const abateProduto = Math.min(pago, P);
       P = round2(P - abateProduto);
-      // sobra (pagou mais que devia) é ignorada
     }
   }
 
@@ -88,18 +82,19 @@ export function calcular(
   const quitada = P <= 0.009 && J <= 0.009;
   const proxFechamento = quitada
     ? null
-    : addDias(divida.data_compra, (ciclosFechados + 1) * CICLO_DIAS);
+    : addDias(divida.data_compra, (ciclosFechados + 1) * cicloDias);
   const diasProxFechamento = proxFechamento ? diffDias(hoje, proxFechamento) : null;
   const fechaHoje =
     !quitada &&
     ciclosFechados >= 1 &&
-    addDias(divida.data_compra, ciclosFechados * CICLO_DIAS) === hoje;
+    addDias(divida.data_compra, ciclosFechados * cicloDias) === hoje;
 
   return {
     principal: P,
     juros: J,
     total: round2(P + J),
-    jurosProximo: round2(P * JUROS_PCT),
+    jurosProximo: round2(P * jurosPct),
+    jurosPago,
     ciclosFechados,
     proxFechamento,
     diasProxFechamento,
@@ -109,10 +104,8 @@ export function calcular(
   };
 }
 
-// ---- Agrupar dívidas por cliente (pessoa + empresa) ----
-export function agruparPorCliente(
-  itens: DividaComEstado[],
-): Cliente[] {
+// ---- Agrupar por cliente ----
+export function agruparPorCliente(itens: DividaComEstado[]): Cliente[] {
   const mapa = new Map<string, Cliente>();
   for (const it of itens) {
     const pessoa = it.divida.pessoa.trim();
@@ -124,6 +117,7 @@ export function agruparPorCliente(
         chave,
         pessoa,
         empresa,
+        telefone: null,
         dividas: [],
         totalDevido: 0,
         principal: 0,
@@ -132,6 +126,7 @@ export function agruparPorCliente(
       mapa.set(chave, c);
     }
     c.dividas.push(it);
+    if (!c.telefone && it.divida.telefone) c.telefone = it.divida.telefone;
     c.totalDevido = round2(c.totalDevido + it.estado.total);
     c.principal = round2(c.principal + it.estado.principal);
     c.juros = round2(c.juros + it.estado.juros);
@@ -150,4 +145,31 @@ export function dataBR(iso: string): string {
 export function dataBRcompleta(iso: string): string {
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
+}
+
+// ---- WhatsApp ----
+export function digitosTelefone(tel: string): string {
+  return tel.replace(/\D/g, '');
+}
+export function linkWhatsApp(telefone: string, texto: string): string {
+  let n = digitosTelefone(telefone);
+  if (n.length > 0 && n.length <= 11) n = '55' + n; // adiciona DDI Brasil se faltar
+  return `https://wa.me/${n}?text=${encodeURIComponent(texto)}`;
+}
+export function mensagemCobranca(cliente: Cliente): string {
+  const linhas: string[] = [];
+  linhas.push(`Olá ${cliente.pessoa}, tudo bem?`);
+  linhas.push('');
+  linhas.push('Passando pra lembrar do saldo em aberto referente à(s) compra(s):');
+  for (const it of cliente.dividas) {
+    const d = it.divida;
+    const prod = d.descricao ? ` (${d.descricao})` : '';
+    linhas.push(
+      `• ${dataBRcompleta(d.data_compra)}${prod}: produto ${brl(it.estado.principal)} + juros ${brl(it.estado.juros)} = ${brl(it.estado.total)}`,
+    );
+  }
+  linhas.push('');
+  linhas.push(`*Total: ${brl(cliente.totalDevido)}*`);
+  linhas.push('Qualquer dúvida estou à disposição. Obrigado!');
+  return linhas.join('\n');
 }
