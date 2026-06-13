@@ -158,18 +158,21 @@ export function linkWhatsApp(telefone: string, texto: string): string {
 }
 export function mensagemCobranca(cliente: Cliente): string {
   const linhas: string[] = [];
-  linhas.push(`Olá ${cliente.pessoa}, tudo bem?`);
+  linhas.push('Bom dia! 👋');
   linhas.push('');
-  linhas.push('Passando pra lembrar do saldo em aberto referente à(s) compra(s):');
-  for (const it of cliente.dividas) {
-    const d = it.divida;
-    const prod = d.descricao ? ` (${d.descricao})` : '';
-    linhas.push(
-      `• ${dataBRcompleta(d.data_compra)}${prod}: produto ${brl(it.estado.principal)} + juros ${brl(it.estado.juros)} = ${brl(it.estado.total)}`,
-    );
-  }
+  linhas.push(`Segue o valor a pagar: *${brl(cliente.juros)}*`);
   linhas.push('');
-  linhas.push(`*Total: ${brl(cliente.totalDevido)}*`);
-  linhas.push('Qualquer dúvida estou à disposição. Obrigado!');
+  linhas.push('Essa é a chave pix, é só copiar e colar:');
+  linhas.push('Matheus Souza Belga');
+  linhas.push('Banco C6 Bank');
+  linhas.push('Chave Pix: Celular');
+  linhas.push('👉 21982581421');
+  linhas.push('');
+  linhas.push('ASSIM QUE FIZER O PIX ME ENVIE O COMPROVANTE ❗❗❗');
+  linhas.push('');
+  linhas.push('🔑 Chave pix (copia e cola)');
+  linhas.push('👉 21982581421');
+  linhas.push('');
+  linhas.push('OBS: confirmar os dados antes do envio do valor.');
   return linhas.join('\n');
 }
