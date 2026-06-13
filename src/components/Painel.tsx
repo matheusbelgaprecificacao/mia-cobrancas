@@ -30,6 +30,10 @@ export default function Painel() {
   const [carregando, setCarregando] = useState(true);
   const [aba, setAba] = useState<Aba>('aberto');
   const [novaCompra, setNovaCompra] = useState(false);
+  const [compraCliente, setCompraCliente] = useState<{
+    pessoa: string;
+    empresa: string;
+  } | null>(null);
   const [pagando, setPagando] = useState<DividaComEstado | null>(null);
   const hoje = hojeSP();
 
@@ -139,6 +143,9 @@ export default function Painel() {
                 cliente={c}
                 onPagar={(i) => setPagando(i)}
                 onExcluir={excluir}
+                onAdicionarCompra={(pessoa, empresa) =>
+                  setCompraCliente({ pessoa, empresa: empresa ?? '' })
+                }
               />
             ))}
           </div>
@@ -170,11 +177,18 @@ export default function Painel() {
         </ul>
       )}
 
-      {novaCompra && (
+      {(novaCompra || compraCliente) && (
         <FormCompra
-          onFechar={() => setNovaCompra(false)}
+          pessoaInicial={compraCliente?.pessoa ?? ''}
+          empresaInicial={compraCliente?.empresa ?? ''}
+          fixarCliente={!!compraCliente}
+          onFechar={() => {
+            setNovaCompra(false);
+            setCompraCliente(null);
+          }}
           onSalvo={() => {
             setNovaCompra(false);
+            setCompraCliente(null);
             carregar();
           }}
         />
@@ -197,10 +211,12 @@ function CardCliente({
   cliente,
   onPagar,
   onExcluir,
+  onAdicionarCompra,
 }: {
   cliente: ReturnType<typeof agruparPorCliente>[number];
   onPagar: (i: DividaComEstado) => void;
   onExcluir: (d: Divida) => void;
+  onAdicionarCompra: (pessoa: string, empresa: string | null) => void;
 }) {
   const [aberto, setAberto] = useState(cliente.dividas.length <= 2);
 
@@ -241,6 +257,12 @@ function CardCliente({
               onExcluir={() => onExcluir(i.divida)}
             />
           ))}
+          <button
+            onClick={() => onAdicionarCompra(cliente.pessoa, cliente.empresa)}
+            className="w-full flex items-center justify-center gap-1.5 py-3 text-sm text-green font-medium hover:bg-green-soft transition"
+          >
+            <Plus size={15} /> Adicionar compra deste cliente
+          </button>
         </div>
       )}
     </div>
@@ -359,12 +381,18 @@ function Vazio({ onNova }: { onNova: () => void }) {
 function FormCompra({
   onFechar,
   onSalvo,
+  pessoaInicial = '',
+  empresaInicial = '',
+  fixarCliente = false,
 }: {
   onFechar: () => void;
   onSalvo: () => void;
+  pessoaInicial?: string;
+  empresaInicial?: string;
+  fixarCliente?: boolean;
 }) {
-  const [pessoa, setPessoa] = useState('');
-  const [empresa, setEmpresa] = useState('');
+  const [pessoa, setPessoa] = useState(pessoaInicial);
+  const [empresa, setEmpresa] = useState(empresaInicial);
   const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
   const [dataCompra, setDataCompra] = useState(hojeSP());
@@ -391,15 +419,30 @@ function FormCompra({
   }
 
   return (
-    <Modal titulo="Nova compra a prazo" onFechar={onFechar}>
-      <Campo label="Nome da pessoa">
-        <input value={pessoa} onChange={(e) => setPessoa(e.target.value)} placeholder="Ex: João Silva" className="campo" autoFocus />
-      </Campo>
-      <Campo label="Empresa (opcional)">
-        <input value={empresa} onChange={(e) => setEmpresa(e.target.value)} placeholder="Ex: Mercadinho do João" className="campo" />
-      </Campo>
+    <Modal
+      titulo={fixarCliente ? 'Nova compra' : 'Nova compra a prazo'}
+      onFechar={onFechar}
+    >
+      {fixarCliente ? (
+        <div className="bg-paper border border-line rounded-xl px-3 py-2.5 text-sm">
+          <span className="text-muted">Cliente: </span>
+          <span className="font-medium">
+            {pessoaInicial}
+            {empresaInicial ? ` · ${empresaInicial}` : ''}
+          </span>
+        </div>
+      ) : (
+        <>
+          <Campo label="Nome da pessoa">
+            <input value={pessoa} onChange={(e) => setPessoa(e.target.value)} placeholder="Ex: João Silva" className="campo" autoFocus />
+          </Campo>
+          <Campo label="Empresa (opcional)">
+            <input value={empresa} onChange={(e) => setEmpresa(e.target.value)} placeholder="Ex: Mercadinho do João" className="campo" />
+          </Campo>
+        </>
+      )}
       <Campo label="Produto / pedido (opcional)">
-        <input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex: 2 caixas de organizadores" className="campo" />
+        <input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex: 2 caixas de organizadores" className="campo" autoFocus={fixarCliente} />
       </Campo>
       <div className="grid grid-cols-2 gap-3">
         <Campo label="Valor do produto (R$)">
