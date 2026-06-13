@@ -118,6 +118,21 @@ export default function Dashboard() {
       });
   }, [pagamentos]);
 
+  const proximos = useMemo(
+    () =>
+      abertas
+        .filter((i) => {
+          const d = i.estado.diasProxFechamento;
+          return d !== null && d <= 5;
+        })
+        .sort(
+          (a, b) =>
+            (a.estado.diasProxFechamento ?? 99) -
+            (b.estado.diasProxFechamento ?? 99),
+        ),
+    [abertas],
+  );
+
   if (carregando) {
     return (
       <main className="max-w-2xl mx-auto px-5 pt-6">
@@ -173,15 +188,51 @@ export default function Dashboard() {
         />
       </div>
 
-      {m.fecham7 > 0 && (
-        <div className="bg-amber-soft border border-amber/30 rounded-2xl p-4 mb-6 flex items-center gap-3">
-          <CalendarClock size={18} className="text-amber shrink-0" />
-          <p className="text-sm text-ink-soft">
-            <span className="font-semibold text-amber">{m.fecham7}</span> compra
-            {m.fecham7 > 1 ? 's' : ''} fecha{m.fecham7 > 1 ? 'm' : ''} nos próximos 7 dias —
-            juros novo entrando.
+      {proximos.length > 0 && (
+        <section className="bg-amber-soft border border-amber/30 rounded-2xl p-4 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <CalendarClock size={16} className="text-amber" />
+            <p className="eyebrow text-amber">Vencimentos próximos (5 dias)</p>
+          </div>
+          <ul className="space-y-2">
+            {proximos.map((i) => {
+              const d = i.estado.diasProxFechamento ?? 0;
+              const quando =
+                d === 0
+                  ? 'fecha hoje'
+                  : d === 1
+                    ? 'fecha amanhã'
+                    : `fecha em ${d} dias`;
+              return (
+                <li
+                  key={i.divida.id}
+                  className="flex items-center justify-between gap-3 bg-card rounded-xl px-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">
+                      {i.divida.pessoa}
+                      {i.divida.empresa ? ` · ${i.divida.empresa}` : ''}
+                    </p>
+                    <p className="text-xs text-muted truncate">
+                      {i.divida.descricao || 'Compra'} · cobrar juros{' '}
+                      {brl(i.estado.jurosProximo)}
+                    </p>
+                  </div>
+                  <span
+                    className={`text-xs font-semibold shrink-0 ${
+                      d === 0 ? 'text-amber' : 'text-ink-soft'
+                    }`}
+                  >
+                    {quando}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-[0.7rem] text-muted mt-2">
+            No dia do fechamento, o aviso também chega no seu Telegram.
           </p>
-        </div>
+        </section>
       )}
 
       {abertas.length === 0 ? (
