@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: #f7f5f0;
+  color: #1a1c22;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Números sempre tabulares (alinham bonito em colunas) */
+.num {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.66rem;
+  font-weight: 600;
+}
+
+.campo {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e7e3da;
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.8rem;
+  color: #1a1c22;
+  outline: none;
+}
+.campo:focus {
+  border-color: #11795b;
+}
+
+/* foco visível para acessibilidade */
+*:focus-visible {
+  outline: 2px solid #11795b;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
